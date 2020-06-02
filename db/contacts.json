@@ -59,5 +59,16 @@
     "email": "Donec.elementum@scelerisquescelerisquedui.net",
     "phone": "(748) 206-2688"
   },
-  { "name": "Mango", "email": "mango@gmail.com", "phone": "322-22-22" }
+  {
+    "id": "e526c171-9881-4920-9591-c9c1b3d894d0",
+    "name": "Vasya",
+    "email": "example2@gmail.com",
+    "phone": "123-45-67"
+  },
+  {
+    "id": "6faa635c-770d-4e5b-8f80-461a8cec41da",
+    "name": " correct Mango",
+    "email": "mango@gmail.com",
+    "phone": "322-22-22"
+  }
 ]
