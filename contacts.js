@@ -1,60 +1,92 @@
 const fs = require("fs");
 const path = require("path");
+const { v4: uuidv4 } = require("uuid");
+const { promises: fsPromises } = fs;
+const contactsPath = path.join(__dirname, "/db/contacts.json");
 
-const contactsPath = path.join(__dirname, "./db/contacts.json");
-
-// TODO: задокументировать каждую функцию
-function listContacts() {
-  fs.readFile("./db/contacts.json", "utf-8", function (err, content) {
-    try {
-      const parsedContent = JSON.parse(content);
-      console.table(parsedContent);
-    } catch (error) {
-      console.log("listContacts error", err);
-    }
-  });
+function listContacts(req, resp) {
+  getFileData()
+    .then((data) => {
+      resp.send(data);
+    })
+    .catch((err) => {
+      console.log(err);
+    });
 }
 
-function getContactById(contactId) {
-  fs.readFile("./db/contacts.json", "utf-8", function (err, content) {
-    try {
-      const parsedContent = JSON.parse(content);
-      const findContact = parsedContent.find((item) => item.id === contactId);
-      console.log("findContact", findContact);
-    } catch (error) {
-      console.log("getContactById error", err);
-    }
-  });
+function getFileData() {
+  return fsPromises
+    .readFile(contactsPath, "utf-8")
+    .then((data) => JSON.parse(data))
+    .catch((err) => err);
 }
 
-function removeContact(contactId) {
-  fs.readFile(contactsPath, { encoding: "utf-8" }, (err, data) => {
-    try {
-      const parsedData = JSON.parse(data);
-
-      const deleteContact = parsedData.filter((item) => item.id !== contactId);
-      console.log("Contact was removed:", deleteContact);
-      return deleteContact;
-    } catch (error) {
-      console.log("removeContact error:", err);
-    }
-  });
+function removeContact({ resp, contactId }) {
+  getFileData()
+    .then((data) => {
+      const contact = data.find((item) => item.id == contactId);
+      if (!contact) {
+        resp.status(404).send({ message: "Not found" });
+      }
+      const filteredContacts = data.filter((item) => item.id != contactId);
+      fsPromises
+        .writeFile(contactsPath, JSON.stringify(filteredContacts, "", 2))
+        .then(() => {
+          resp.status(200).send({ message: "contact deleted" });
+        });
+    })
+    .catch((err) => {
+      console.log(err);
+    });
 }
 
-function addContact(name, email, phone) {
-  fs.readFile(contactsPath, { encoding: "utf-8" }, (err, data) => {
-    try {
-      const parsedData = JSON.parse(data);
+function getContactById({ req, resp, contactId }) {
+  getFileData()
+    .then((data) => {
+      const contact = data.find((item) => item.id == contactId);
+      if (contact) {
+        resp.send(contact);
+      } else {
+        resp.status(404).send({ message: "Not found" });
+      }
+    })
+    .catch((err) => {
+      console.log(err);
+    });
+}
 
-      const newContact = { name, email, phone };
-      const allContacts = [...parsedData, newContact];
-
-      fs.writeFile(contactsPath, JSON.stringify(allContacts), () => {
-        console.log("Contact was added.");
+function addContact({ name, email, phone, resp }) {
+  getFileData().then((data) => {
+    const contact = {
+      id: uuidv4(),
+      name,
+      email,
+      phone,
+    };
+    data.push(contact);
+    fsPromises
+      .writeFile(contactsPath, JSON.stringify(data, "", 2))
+      .then(() => {
+        resp.status(201).send(contact);
+      })
+      .catch((err) => {
+        resp.send(err);
       });
-      console.log(allContacts);
-    } catch (error) {
-      console.log("error:", err);
+  });
+}
+
+function updateContact({ req, resp, id }) {
+  getFileData().then((data) => {
+    const contact = data.findIndex((item) => item.id == id);
+    if (contact == -1) {
+      resp.status(404).send({ message: "Not found" });
+    } else {
+      Object.assign(data[contact], { ...req.body });
+      fsPromises
+        .writeFile(contactsPath, JSON.stringify(data, null, 2))
+        .then(() => {
+          resp.send(data[contact]);
+        });
     }
   });
 }
@@ -64,4 +96,5 @@ module.exports = {
   getContactById,
   removeContact,
   addContact,
+  updateContact,
 };
