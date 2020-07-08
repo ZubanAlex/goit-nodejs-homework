@@ -8,6 +8,7 @@ class Controller {
       email,
       password: passwordHash,
       subscription,
+      avatarURL,
     });
   findAll = (page, limit, sort) => {
     const options = limit && { page, limit, sort };
