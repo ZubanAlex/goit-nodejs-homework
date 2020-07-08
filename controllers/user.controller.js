@@ -1,17 +1,33 @@
+const path = require("path");
+const fsPromises = require("fs").promises;
+const shortId = require("shortid");
 const authActions = require("./authActions");
 const actions = require("./actions");
+const multer = require("multer");
+const { createAvatar } = require("../helpers/avatar-builder");
 
 exports.createUser = async (req, res, next) => {
   try {
     const { password, email, name, subscription } = req.body;
     const isEmail = await actions.findEmail(email);
     if (!isEmail) {
+      const userAvatar = await createAvatar(email);
+      const id = shortId();
+      const avatarFileName = `${id}__${name}.png`;
+      const avatarPath = path.join(
+        __dirname,
+        `../public/images/${avatarFileName}`
+      );
+      await fsPromises.writeFile(avatarPath, userAvatar);
+      const avatarURL = `http://localhost:3001/images/${avatarFileName}`;
+
       const passwordHash = await authActions.passwordHash(password);
       const user = await actions.createUser(
         passwordHash,
         email,
         name,
-        subscription
+        subscription,
+        avatarURL
       );
 
       const token = authActions.createToken(user._id);
@@ -71,7 +87,7 @@ exports.logout = async (req, res, next) => {
     next(error);
   }
 };
-exports.verifyToken = async (req, res, next) => {
+exports.validateToken = async (req, res, next) => {
   try {
     const token = req.get("authorization").replace("Bearer ", "");
 
@@ -156,6 +172,43 @@ exports.updateContact = async (req, res, next) => {
     } else {
       return res.status(404).json({ message: "Not found" });
     }
+  } catch (error) {
+    next(error);
+  }
+};
+exports.writeAvatar = () => {
+  const storage = multer.diskStorage({
+    destination: "public/images",
+    filename: (req, file, cb) => {
+      const { name, ext } = path.parse(file.originalname);
+      cb(null, name + "__" + shortId() + ext);
+    },
+  });
+  const upload = multer({ storage: storage });
+  return upload.single("avatar");
+};
+exports.multerHandler = () => {
+  const upload = multer();
+  return upload.any();
+};
+exports.updateAllFieldsContact = async (req, res, next) => {
+  try {
+    const contactId = req.user.id;
+    const newProperties = req.body;
+    if (req.files.length) {
+      const newAvatar = req.files[0].buffer;
+      const avatarFileName = path.basename(req.user.avatarURL);
+      const avatarPath = path.join(
+        __dirname,
+        `../public/images/${avatarFileName}`
+      );
+      await fsPromises.writeFile(avatarPath, newAvatar);
+    }
+
+    await actions.findAndUpdate(contactId, newProperties);
+    return res.status(200).json({
+      avatarURL: req.user.avatarURL,
+    });
   } catch (error) {
     next(error);
   }

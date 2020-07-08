@@ -31,10 +31,12 @@ module.exports = class myMongoDBServer {
     this.server.use(morgan("combined"));
   };
   initRoutes = () => {
+    this.server.use(express.static("public"));
     this.server.use("/contacts", getContacts);
     this.server.use("/contacts", editContacts);
     this.server.use("/auth", editContacts);
     this.server.use("/users", getContacts);
+    this.server.use("/users", editContacts);
   };
   initErrorHandler = () => {
     this.server.use((err, req, res, next) => {
